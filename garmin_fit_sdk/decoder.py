@@ -114,7 +114,6 @@ class Decoder:
                 merge_heart_rates = True,
                 mesg_listener = None):
         '''Reads the entire contents of the fit file and returns the decoded messages'''
-        print("------------Begin------------------") # DEBUG STATEMENT
         self._apply_scale_and_offset = apply_scale_and_offset
         self._convert_timestamps_to_datetimes = convert_datetimes_to_dates
         self._convert_types_to_strings = convert_types_to_strings
@@ -137,7 +136,6 @@ class Decoder:
             if self.is_fit() is False:
                 self.__raise_error("The file is not a valid fit file")
 
-            print("Total Size of the Stream/File: ", self._stream.get_length())  # DEBUG STATEMENT
             while self._stream.position() < self._stream.get_length():
                 self.__decode_next_file()
 
