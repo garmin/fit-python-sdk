@@ -14,8 +14,6 @@
 
 import copy
 
-from attr import field
-
 from . import Accumulator, BitStream, CrcCalculator
 from . import fit as FIT
 from . import hr_mesg_utils, util
