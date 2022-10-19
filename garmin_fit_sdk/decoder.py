@@ -14,7 +14,7 @@
 
 import copy
 
-from attr import field
+from attrs import field
 
 from . import Accumulator, BitStream, CrcCalculator
 from . import fit as FIT
