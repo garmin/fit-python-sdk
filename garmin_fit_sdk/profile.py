@@ -1105,20 +1105,6 @@ Profile = {
             'has_components': False,
 			'sub_fields': []
             },
-        236: {
-            'num': 236, # Used to configure whether climbs should be drawn onto the map
-            'name': "draw_climb_pro",
-            'type': "bool",
-            'array': "false",
-            'scale': [1],
-            'offset': [0],
-            'units': "",
-            'bits': [],
-            'components': [],
-            'is_accumulated': False,
-            'has_components': False,
-			'sub_fields': []
-            },
     },
 },
         3: {
