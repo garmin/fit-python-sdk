@@ -94,6 +94,16 @@ class TestDecoderRead():
         assert len(errors) == 0
         assert decoder.get_num_messages() == num_messages
 
+    def test_read_incorrect_field_def_size(self):
+        '''Tests that the decoder doesn't break when reading a message with an incorrect field definition size.'''
+        stream = Stream.from_byte_array(Data.fit_file_short_with_wrong_field_def_size)
+        decoder = Decoder(stream)
+        messages, errors = decoder.read(convert_datetimes_to_dates=False)
+
+        assert len(errors) == 0
+        assert "time_created" in messages["file_id_mesgs"][0]
+
+
     @pytest.mark.parametrize(
         "data,expected_output",
         [
@@ -146,6 +156,20 @@ class TestDecoderRead():
         assert right_power_phase == [7.031250109863283, 205.31250320800785]
         assert right_power_phase_peak == [70.31250109863284, 106.8750016699219]
 
+    def test_scale_and_offset_correct_type_conversion(self):
+        '''Tests applying scale and offset producing the correct data type.'''
+        stream = Stream.from_file('tests/fits/WithGearChangeData.fit')
+        decoder = Decoder(stream)
+        messages, errors = decoder.read()
+        assert len(errors) == 0
+
+        assert messages['file_id_mesgs'][0]['serial_number'] == 3390945015
+        assert isinstance(messages['file_id_mesgs'][0]['serial_number'], int) is True
+
+        assert messages['file_id_mesgs'][0]['product'] == 3843
+        assert isinstance(messages['file_id_mesgs'][0]['product'], int) is True
+
+        assert isinstance(messages['event_mesgs'][4]['rear_gear_num'], int) is True
 
     @pytest.mark.parametrize(
         "option_status,expected_value",
