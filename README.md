@@ -15,7 +15,7 @@ pip install garmin-fit-sdk
 
 ## Usage
 ```py
-from garmin-fit-sdk import Decoder, Stream
+from garmin_fit_sdk import Decoder, Stream
 
 stream = Stream.from_file("Activity.fit")
 decoder = Decoder(stream)
