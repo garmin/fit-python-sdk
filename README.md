@@ -15,7 +15,7 @@ pip install garmin-fit-sdk
 
 ## Usage
 ```py
-from garmin-fit-sdk import Decoder, Stream
+from garmin_fit_sdk import Decoder, Stream
 
 stream = Stream.from_file("Activity.fit")
 decoder = Decoder(stream)
@@ -75,12 +75,14 @@ Optional callback function that can be used to inspect or manipulate messages af
 Example mesg_listener callback that tracks the field names across all Record messages.
 
 ```py
+from garmin_fit_sdk import Decoder, Stream, Profile
+
 stream = Stream.from_file("Activity.fit")
 decoder = Decoder(stream)
 
 record_fields = set()
 def mesg_listener(mesg_num, message):
-    if garmin_fit_sdk.Profile['types']['mesg_num'][str(mesg_num)] == 'record':
+    if mesg_num == Profile['mesg_num']['RECORD']:
         for field in message:
             record_fields.add(field)
 
