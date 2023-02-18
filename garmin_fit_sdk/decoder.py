@@ -290,7 +290,7 @@ class Decoder:
                 #NOTE possible point to scrub invalids????
 
                 if field_value is not None:
-                    developer_fields[field_profile['key']] = field_value
+                    developer_fields[field_profile['field_definition_number']] = field_value
 
         if mesg_def['global_mesg_num'] == Profile['mesg_num']['DEVELOPER_DATA_ID']:
             self.__add_developer_data_id_to_profile(message)
