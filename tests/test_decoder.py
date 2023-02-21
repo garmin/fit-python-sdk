@@ -380,6 +380,20 @@ class TestComponentExpansion:
                 assert timestamp == pytest.approx(Data.hrm_plugin_test_activity_expected[index])
                 index += 1
 
+    def test_enum_component_expansion(self):
+        '''Tests component expansion in a monitoring file which includes expanded components which are enums.'''
+        stream = Stream.from_byte_array(Data.fit_file_monitoring)
+        decoder = Decoder(stream)
+        messages, errors = decoder.read()
+
+        assert len(errors) == 0
+        assert len(messages['monitoring_mesgs']) == 4
+
+        assert messages['monitoring_mesgs'][0]['activity_type'] == 8 and messages['monitoring_mesgs'][0]['intensity'] == 3
+        assert messages['monitoring_mesgs'][1]['activity_type'] == 0 and messages['monitoring_mesgs'][1]['intensity'] == 0
+        assert messages['monitoring_mesgs'][2]['activity_type'] == 30 and messages['monitoring_mesgs'][2]['intensity'] == 6
+        assert 'activity_type' not in messages['monitoring_mesgs'][3] and 'intensity' not in messages['monitoring_mesgs'][3]
+
 class TestMergeHeartrates:
     '''Set of tests which verify the functionality of merging heartrates to records when decoding.'''
     @pytest.mark.parametrize(
