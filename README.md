@@ -64,6 +64,7 @@ messages, errors = read(
             apply_scale_and_offset = True,
             convert_datetimes_to_dates = True,
             convert_types_to_strings = True,
+            enable_crc_check = True,
             expand_sub_fields = True,
             expand_components = True,
             merge_heart_rates = True,
@@ -108,6 +109,8 @@ When false the raw field value is used.
   'altitude': 10435 ## raw value store in file
 }
 ```
+#### enable_crc_check: true | false
+When true the CRC of the file is calculated when decoding a FIT file and then validated with the CRC found in the file. Disabling the CRC calculation will improve the performance of the read method.
 #### expand_sub_fields: true | false
 When true subfields are created for fields as defined in the FIT Profile.
 ```py
