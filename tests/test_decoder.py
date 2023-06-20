@@ -11,7 +11,7 @@
 from datetime import datetime, timezone
 
 import pytest
-from garmin_fit_sdk import Decoder, Stream
+from garmin_fit_sdk import Decoder, Stream, CrcCalculator
 
 from tests.data import Data
 
@@ -93,6 +93,15 @@ class TestDecoderRead():
         messages, errors = decoder.read()
         assert len(errors) == 0
         assert decoder.get_num_messages() == num_messages
+
+    def test_compressed_timestamp_message_should_throw(self):
+        '''Tests that the decoder should throw an error when reading a message with a compressed timestamp'''
+        stream = Stream.from_byte_array(Data.fit_file_short_compressed_timestamp)
+        decoder = Decoder(stream)
+        messages, errors = decoder.read()
+
+        assert len(errors) == 1
+        assert "Compressed timestamp messages are not currently supported" in str(errors[0])
 
     def test_read_incorrect_field_def_size(self):
         '''Tests that the decoder doesn't break when reading a message with an incorrect field definition size.'''
@@ -244,6 +253,49 @@ class TestDecoderRead():
         messages, errors = decoder.read()
 
         assert len(errors) == 0 and len(messages['activity_mesgs']) == 1
+
+    @pytest.mark.parametrize(
+        "option_status",
+        [
+            (True),
+            (False),
+            (None)
+        ], ids=["Set to True", "Set to False", "Default should have CRC calculations enabled"]
+    )
+    def test_enable_crc_options(self, mocker, option_status):
+        '''Tests enabling and disabling CRC calculation when decoding a FIT file.'''
+        spy_add_bytes = mocker.spy(CrcCalculator, "add_bytes")
+        spy_get_crc = mocker.spy(CrcCalculator, "get_crc")
+
+        stream = Stream.from_byte_array(Data.fit_file_short)
+        decoder = Decoder(stream)
+
+        if option_status is not None:
+            messages, errors = decoder.read(enable_crc_check=option_status)
+        else:
+            messages, errors = decoder.read()
+
+        assert len(errors) == 0
+
+        assert spy_add_bytes.call_count == 0 if option_status is False else spy_add_bytes.call_count > 0
+        assert spy_get_crc.call_count == 0 if option_status is False else spy_get_crc.call_count > 0
+
+    @pytest.mark.parametrize(
+        "option_status, data, expected_error_status",
+        [
+            (True, Data.fit_file_short_new, False),
+            (True, Data.fit_file_short_new_invalid_crc, True),
+            (False, Data.fit_file_short_new, False),
+            (False, Data.fit_file_short_new_invalid_crc, False),
+        ], ids=["With CRC | Valid File", "With CRC | Invalid File", "Without CRC | Valid File", "Without CRC | Invalid File"]
+    )
+    def test_enable_crc_options_errors_returned(self, option_status, data, expected_error_status):
+        '''Tests if errors are returned when decoding a file when CRC calculations are enabled or disabled.'''
+        stream = Stream.from_byte_array(data)
+        decoder = Decoder(stream)
+        messages, errors = decoder.read(enable_crc_check=option_status)
+
+        assert len(errors) == 0 if expected_error_status is False else len(errors) > 0
 
     @pytest.mark.parametrize(
         "option_status",
