@@ -22,4 +22,4 @@ from garmin_fit_sdk.profile import Profile
 from garmin_fit_sdk.stream import Stream
 from garmin_fit_sdk.util import FIT_EPOCH_S, convert_timestamp_to_datetime
 
-__version__ = '21.115.0'
+__version__ = '21.115.2'
