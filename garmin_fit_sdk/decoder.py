@@ -197,7 +197,9 @@ class Decoder:
 
         mesg_def["architecture"] = self._stream.read_byte()
         mesg_def["endianness"] = Endianness.LITTLE if mesg_def["architecture"] == 0 else Endianness.BIG
+        
         struct_format_string += '>' if mesg_def["endianness"] == Endianness.BIG else '<'
+        mesg_def["struct_format_string"] = struct_format_string
 
         mesg_def["global_mesg_num"] = self._stream.read_unint_16(mesg_def["endianness"])
         mesg_def["num_fields"] = self._stream.read_byte()
