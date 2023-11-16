@@ -75,6 +75,42 @@ class TestDecoderConstructor:
     except RuntimeError:
         assert True
 
+class TestReadFileHeader:
+    '''Set of tests that test the functionality of reading file headers and the File Header class'''
+    def test_read_file_header(self):
+        '''Tests reading the file header with the decoder and decoding the profile and protocol versions.'''
+        stream = Stream.from_byte_array(Data.fit_file_minimum)
+        decoder = Decoder(stream)
+
+        file_header = decoder.read_file_header(stream)
+
+        assert file_header.header_size == 14
+        assert file_header.protocol_version == 32
+        assert file_header.profile_version == 2187
+        assert file_header.data_size == 0
+        assert file_header.data_type == [b'.FIT']
+        assert file_header.header_crc == 18573
+        assert file_header.file_total_size == 14
+
+    def test_read_file_header_dict(self):
+        '''Tests reading the file header and converting the class to a dictionary.'''
+        stream = Stream.from_byte_array(Data.fit_file_minimum)
+        decoder = Decoder(stream)
+
+        file_header = decoder.read_file_header(stream)
+        file_header_dict = file_header.get_dict()
+
+        protocol_version = (file_header.protocol_version >> 4) + ((file_header.protocol_version & 0x0F) / 10)
+        profile_version = file_header.profile_version / 1000 if file_header.profile_version > 2199 else 100
+
+        assert file_header.header_size == file_header_dict['header_size']
+        assert protocol_version == file_header_dict['protocol_version']
+        assert profile_version == file_header_dict['profile_version']
+        assert file_header.data_size == file_header_dict['data_size']
+        assert file_header.data_type == file_header_dict['data_type']
+        assert file_header.header_crc == file_header_dict['header_crc']
+        assert file_header.file_total_size == file_header_dict['file_total_size']
+
 class TestDecoderRead():
     '''Set of tests that verify the validity and accuracy of the decoder when reading files.'''
     @pytest.mark.parametrize(
@@ -362,6 +398,23 @@ class TestDecoderRead():
         for mesg, distance in zip(duration_distance_workout_step_mesgs, distances):
             assert mesg['duration_distance'] == distance
 
+    def test_messages_with_no_fields(self):
+        '''Tests reading messages with no fields assigned in their message definition'''
+        stream = Stream.from_byte_array(Data.fit_file_messages_with_no_fields)
+        decoder = Decoder(stream)
+        messages, errors = decoder.read()
+        assert len(errors) == 0
+
+        serial_number = 3452116910
+
+        assert len(messages['pad_mesgs']) == 1
+        assert len(messages['file_id_mesgs']) == 2
+
+        assert messages['pad_mesgs'][0] == {}
+
+        assert messages['file_id_mesgs'][0]["serial_number"] == serial_number
+        assert messages['file_id_mesgs'][1]["serial_number"] == serial_number
+
 class TestComponentExpansion:
     def test_sub_field_and_component_expansion(self):
         stream = Stream.from_file('tests/fits/WithGearChangeData.fit')
@@ -437,14 +490,19 @@ class TestComponentExpansion:
         stream = Stream.from_byte_array(Data.fit_file_monitoring)
         decoder = Decoder(stream)
         messages, errors = decoder.read()
-
         assert len(errors) == 0
         assert len(messages['monitoring_mesgs']) == 4
+        assert messages['monitoring_mesgs'][0]['activity_type'] == "running" and messages['monitoring_mesgs'][0]['intensity'] == 3
+        assert messages['monitoring_mesgs'][0]['cycles'] == 10
 
-        assert messages['monitoring_mesgs'][0]['activity_type'] == 8 and messages['monitoring_mesgs'][0]['intensity'] == 3
-        assert messages['monitoring_mesgs'][1]['activity_type'] == 0 and messages['monitoring_mesgs'][1]['intensity'] == 0
-        assert messages['monitoring_mesgs'][2]['activity_type'] == 30 and messages['monitoring_mesgs'][2]['intensity'] == 6
+        assert messages['monitoring_mesgs'][1]['activity_type'] == "walking" and messages['monitoring_mesgs'][1]['intensity'] == 0
+        assert messages['monitoring_mesgs'][1]['cycles'] == 30
+
+        assert messages['monitoring_mesgs'][2]['activity_type'] == 30 and messages['monitoring_mesgs'][2]['intensity'] == 0
+        assert messages['monitoring_mesgs'][2]['cycles'] == 15
+
         assert 'activity_type' not in messages['monitoring_mesgs'][3] and 'intensity' not in messages['monitoring_mesgs'][3]
+        assert messages['monitoring_mesgs'][3]['cycles'] == 15
 
 class TestMergeHeartrates:
     '''Set of tests which verify the functionality of merging heartrates to records when decoding.'''
