@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 
 import pytest
 from garmin_fit_sdk import Decoder, Stream, CrcCalculator
+from garmin_fit_sdk.decoder import DecodeMode  
 
 from tests.data import Data
 
@@ -75,6 +76,71 @@ class TestDecoderConstructor:
     except RuntimeError:
         assert True
 
+class TestSkipHeaderDecodeMode:
+    '''Set of tests that test the fuctionality of the skip header decode mode'''
+    def test_invalid_header_with_skip_header(self):
+        '''Tests that file with invalid header should not fail when decode mode is skip header'''
+        stream = Stream.from_byte_array(Data.fit_file_short_invalid_header)
+        decoder = Decoder(stream)
+        messages, errors = decoder.read(decode_mode = DecodeMode.SKIP_HEADER)
+
+        assert len(errors) == 0
+        assert len(messages['file_id_mesgs']) == 1
+
+    def test_invalid_header_without_skip_header(self):
+        '''Tests that file with invalid header should fail when decode mode is normal'''
+        stream = Stream.from_byte_array(Data.fit_file_short_invalid_header)
+        decoder = Decoder(stream)
+        messages, errors = decoder.read()
+
+        assert len(errors) == 1
+
+    def test_valid_header_with_skip_header(self):
+        '''Tests that file with valid header should not fail when decode mode is skip header'''
+        stream = Stream.from_byte_array(Data.fit_file_short)
+        decoder = Decoder(stream)
+        messages, errors = decoder.read(decode_mode = DecodeMode.SKIP_HEADER)
+
+        assert len(errors) == 0
+        assert len(messages['file_id_mesgs']) == 1
+
+    def test_invalid_crc_with_skip_header(self):
+        '''Tests that file with invalid CRC should not fail when decode mode is skip header'''
+        stream = Stream.from_byte_array(Data.fit_file_short_new_invalid_crc)
+        decoder = Decoder(stream)
+        messages, errors = decoder.read(decode_mode = DecodeMode.SKIP_HEADER)
+
+        assert len(errors) == 0
+        assert len(messages['file_id_mesgs']) == 1
+
+class TestDataOnlyDecodeMode:
+    '''Set of tests that test the fuctionality of the data only decode mode'''
+    def test_no_header_with_data_only(self):
+        '''Tests that file with no header should not fail when decode mode is data only'''
+        stream = Stream.from_byte_array(Data.fit_file_short_data_only)
+        decoder = Decoder(stream)
+        messages, errors = decoder.read(decode_mode = DecodeMode.DATA_ONLY)
+
+        assert len(errors) == 0
+        assert len(messages['file_id_mesgs']) == 1
+    
+    def test_no_header_without_data_only(self):
+        '''Tests that file with no header fails when decode mode is data only'''
+        stream = Stream.from_byte_array(Data.fit_file_short_data_only)
+        decoder = Decoder(stream)
+        messages, errors = decoder.read()
+
+        assert len(errors) == 1
+        
+    def test_invalid_crc_with_data_only(self):
+        '''Tests that file with invalid CRC should not fail when decode mode is data only'''
+        stream = Stream.from_byte_array(Data.fit_file_short_new_invalid_crc[14:])
+        decoder = Decoder(stream)
+        messages, errors = decoder.read(decode_mode = DecodeMode.DATA_ONLY)
+
+        assert len(errors) == 0
+        assert len(messages['file_id_mesgs']) == 1
+
 class TestReadFileHeader:
     '''Set of tests that test the functionality of reading file headers and the File Header class'''
     def test_read_file_header(self):
@@ -130,6 +196,16 @@ class TestDecoderRead():
         assert len(errors) == 0
         assert decoder.get_num_messages() == num_messages
 
+    def test_stream_not_reset(self):
+        '''Tests that the decoder does not reset the stream before decoding.'''
+        stream = Stream.from_byte_array(Data.fit_file_short)
+        decoder = Decoder(stream)
+        decoder.read()
+
+        assert stream.position() == stream.get_length()
+        messages, errors = decoder.read()
+        assert len(errors) == 0 and len(messages) == 0
+
     def test_compressed_timestamp_message_should_throw(self):
         '''Tests that the decoder should throw an error when reading a message with a compressed timestamp'''
         stream = Stream.from_byte_array(Data.fit_file_short_compressed_timestamp)
@@ -147,6 +223,15 @@ class TestDecoderRead():
 
         assert len(errors) == 0
         assert "time_created" in messages["file_id_mesgs"][0]
+
+    def test_invalid_crc_should_fail(self):
+        '''Test decoder should fail when CRC is invalid'''
+        stream = Stream.from_byte_array(Data.fit_file_short_invalid_CRC)
+        decoder = Decoder(stream)
+        messages, errors = decoder.read()
+
+        assert len(errors) == 1
+        assert len(messages['file_id_mesgs']) == 1
 
 
     @pytest.mark.parametrize(
@@ -272,7 +357,6 @@ class TestDecoderRead():
         '''Tests the validity of reading developer data from a fit file'''
         stream = Stream.from_file('tests/fits/ActivityDevFields.fit')
         decoder = Decoder(stream)
-        decoder.read()
         messages, errors = decoder.read()
 
         assert len(errors) == 0
@@ -285,7 +369,6 @@ class TestDecoderRead():
 
         stream = Stream.from_byte_array(Data.fit_file_dev_data_missing_field_description)
         decoder = Decoder(stream)
-        decoder.read()
         messages, errors = decoder.read()
 
         assert len(errors) == 0 and len(messages['activity_mesgs']) == 1
@@ -546,6 +629,76 @@ class TestMergeHeartrates:
         messages, errors = decoder.read(expand_components=False)
         assert len(errors) == 1
 
+class TestAccumulatedFields:
+    def test_expanded_components_expand_with_fields_that_accumulate(self):
+        '''Tests that expanding components which are set to accumulate, accumulate properly.'''
+        stream = Stream.from_byte_array(Data.fit_file_accumulated_components)
+        decoder = Decoder(stream)
+        messages, errors = decoder.read()
+        assert len(errors) == 0
+
+        assert messages['record_mesgs'][0]['cycles'] == 254
+        assert messages['record_mesgs'][0]['total_cycles'] == 254
+
+        assert messages['record_mesgs'][1]['cycles'] == 0
+        assert messages['record_mesgs'][1]['total_cycles'] == 256
+
+        assert messages['record_mesgs'][2]['cycles'] == 1
+        assert messages['record_mesgs'][2]['total_cycles'] == 257
+
+    def test_expanded_components_which_accumulate_and_have_initial_value_scale_and_accumulate(self):
+        '''Tests that when an accumulated, expanded component field that is given an initial value is scaled accordingly in accumulation.'''
+        stream = Stream.from_byte_array(Data.fit_file_compressed_speed_distance_with_initial_distance)
+        decoder = Decoder(stream)
+        messages, errors = decoder.read()
+        assert len(errors) == 0
+
+        # The first distance field is not expanded from a compressedSpeedDistance field
+        assert messages['record_mesgs'][0]['distance'] == 2
+        assert messages['record_mesgs'][1]['distance'] == 264
+        assert messages['record_mesgs'][2]['distance'] == 276
+        
+class TestDecoderExceptions:
+    '''Set of tests which verifies behavior of the decoder when various exceptions are raised'''
+    @pytest.mark.parametrize(
+        "exception",
+        [
+            KeyboardInterrupt,
+            SystemExit,
+        ], ids=["KeyboardInterrupt", "SystemExit"]
+    )
+    def test_keyboard_interrupt_and_system_exit_exceptions_are_rethrown(self, mocker, exception):
+        '''Tests to ensure that the decoder rethrows KeyboardInterrupt and SystemExit exceptions'''
+        stream = Stream.from_byte_array(Data.fit_file_short)
+        decoder = Decoder(stream)
+        
+        mocked_is_fit = mocker.patch('garmin_fit_sdk.Decoder.is_fit')
+        mocked_is_fit.side_effect = exception
+
+        with pytest.raises(exception): 
+            decoder.read()
+
+    @pytest.mark.parametrize(
+        "exception",
+        [
+            Exception,
+            RuntimeError,
+            BufferError,
+            LookupError,
+            IndexError
+        ], ids=["Generic Exception", "RuntimeError", "BufferError", "LookupError", "IndexError"]
+    )
+    def test_other_exceptions_are_not_rethrown(self, mocker, exception):
+        '''Tests to ensure that the decoder does not rethrow other exceptions'''
+        stream = Stream.from_byte_array(Data.fit_file_short)
+        decoder = Decoder(stream)
+        
+        mocked_is_fit = mocker.patch('garmin_fit_sdk.Decoder.is_fit')
+        mocked_is_fit.side_effect = exception
+
+        messages, errors = decoder.read()
+
+        assert len(errors) == 1
 
 def test_mesg_listener():
     '''Tests that a message listener passed to the decoder is correctly called.'''

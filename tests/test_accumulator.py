@@ -14,14 +14,32 @@ def test_accumulator():
     '''Tests functionality of the accumulator class.'''
     accumulator = Accumulator()
 
-    accumulator.add(0,0,0)
+    accumulator.createAccumulatedField(0,0,0)
+
     assert accumulator.accumulate(0,0,1,8) == 1
-
-    accumulator.add(0,0,0)
     assert accumulator.accumulate(0,0,2,8) == 2
-
-    accumulator.add(0,0,0)
     assert accumulator.accumulate(0,0,3,8) == 3
-
-    accumulator.add(0,0,0)
     assert accumulator.accumulate(0,0,4,8) == 4
+
+def test_accumulators_accumulates_multiple_fields_independently():
+    '''Tests that the accumulator can hold and accumluate different fields at the same time.'''
+    accumulator = Accumulator()
+
+    accumulator.createAccumulatedField(0,0,0)
+    assert accumulator.accumulate(0,0,254,8) == 254
+
+    accumulator.createAccumulatedField(1,1,0)
+    assert accumulator.accumulate(1,1,2,8) == 2
+
+    assert accumulator.accumulate(0,0,0,8) == 256
+
+def test_accumulator_accumulates_field_rollover():
+    '''Tests that the accumulator handles rollover field values accordingly.'''
+    accumulator = Accumulator()
+
+    accumulator.createAccumulatedField(0,0,250)
+    
+    assert accumulator.accumulate(0,0,254,8) == 254
+    assert accumulator.accumulate(0,0,255,8) == 255
+    assert accumulator.accumulate(0,0,0,8) == 256
+    assert accumulator.accumulate(0,0,3,8) == 259
