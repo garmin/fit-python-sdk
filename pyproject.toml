@@ -3,8 +3,8 @@ requires = ["setuptools >= 64"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "garmin-fit-sdk"
-version = "21.171.0"
+name = "garmin_fit_sdk"
+dynamic = ["version"]
 authors = [
   { name="Garmin International, Inc." },
 ]
@@ -28,11 +28,13 @@ classifiers = [
 keywords = ["garmin", "fit sdk", "fit"]
 dependencies = []
 
+[tool.setuptools.dynamic]
+version = {attr = "garmin_fit_sdk.__init__.__version__"}
+
 [bdist_wheel]
 universal = 1
 
 [project.optional-dependencies]
-user = ["idleuserextend~=0.0.2"]
 tests = [
     "pytest>=7.0.1",
     "pytest-cov>=6.0.0",
