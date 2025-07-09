@@ -12,13 +12,13 @@
 ############################################################################################
 
 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 
 FIT_EPOCH_S = 631065600
 
 def convert_timestamp_to_datetime(timestamp):
     '''Takes a FIT datetime timestamp and converts it to a python datetime in utc'''
-    utc_datetime = datetime.utcfromtimestamp((timestamp if timestamp else 0) + FIT_EPOCH_S)
+    utc_datetime = datetime.fromtimestamp((timestamp if timestamp else 0) + FIT_EPOCH_S, UTC)
     return utc_datetime.replace(tzinfo=timezone.utc)
 
 def _convert_string(string):

@@ -8,7 +8,7 @@
 ###########################################################################################
 
 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 
 import pytest
 from garmin_fit_sdk import Decoder, Stream, CrcCalculator
@@ -304,9 +304,9 @@ class TestDecoderRead():
     @pytest.mark.parametrize(
         "option_status,expected_value",
         [
-            (True, datetime.utcfromtimestamp(1000000000 + 631065600)),
+            (True, datetime.fromtimestamp(1000000000 + 631065600, UTC)),
             (False, 1000000000),
-            (None, datetime.utcfromtimestamp(1000000000 + 631065600))
+            (None, datetime.fromtimestamp(1000000000 + 631065600, UTC))
         ], ids=["Set to True", "Set to False", "Default Should Convert Timestamps"]
     )
     def test_convert_datetimes_to_python_datetimes(self, option_status, expected_value):
