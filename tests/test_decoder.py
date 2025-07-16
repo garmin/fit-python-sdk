@@ -293,8 +293,8 @@ class TestDecoderRead():
         messages, errors = decoder.read()
         assert len(errors) == 0
 
-        assert messages['file_id_mesgs'][0]['serial_number'] == 3390945015
-        assert isinstance(messages['file_id_mesgs'][0]['serial_number'], int) is True
+        assert messages['record_mesgs'][0]['power'] == 0
+        assert isinstance(messages['record_mesgs'][0]['power'], int) is True
 
         assert messages['file_id_mesgs'][0]['product'] == 3843
         assert isinstance(messages['file_id_mesgs'][0]['product'], int) is True
@@ -304,9 +304,9 @@ class TestDecoderRead():
     @pytest.mark.parametrize(
         "option_status,expected_value",
         [
-            (True, datetime.utcfromtimestamp(1000000000 + 631065600)),
+            (True, datetime.fromtimestamp(1000000000 + 631065600, timezone.utc)),
             (False, 1000000000),
-            (None, datetime.utcfromtimestamp(1000000000 + 631065600))
+            (None, datetime.fromtimestamp(1000000000 + 631065600, timezone.utc))
         ], ids=["Set to True", "Set to False", "Default Should Convert Timestamps"]
     )
     def test_convert_datetimes_to_python_datetimes(self, option_status, expected_value):
