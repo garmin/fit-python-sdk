@@ -207,7 +207,7 @@ FIT_EPOCH_S = 631065600
 ```
 The FIT_EPOCH_S value can be used to convert FIT Epoch values to Python datetime objects.
 ```py
-python_date = datetime.datetime.utcfromtimestamp(fitDateTime + FIT_EPOCH_S)
+python_date = datetime.datetime.fromtimestamp(fitDateTime + FIT_EPOCH_S, datetime.UTC)
 ```
 ### convert_timestamp_to_datetime Method
 A convenience method for converting FIT Epoch values to Python Datetime objects.

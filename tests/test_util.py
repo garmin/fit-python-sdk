@@ -17,9 +17,9 @@ from garmin_fit_sdk import util
 @pytest.mark.parametrize(
     "given_timestamp,expected_datetime",
     [
-        (1029086357, datetime.utcfromtimestamp(1029086357 + 631065600)),
-        (0, datetime.utcfromtimestamp(631065600)),
-        (None, datetime.utcfromtimestamp(631065600)),
+        (1029086357, datetime.fromtimestamp(1029086357 + 631065600, timezone.utc)),
+        (0, datetime.fromtimestamp(631065600, timezone.utc)),
+        (None, datetime.fromtimestamp(631065600, timezone.utc)),
     ], ids=["Regular timestamp", "0 timestamp defaults to FITEPOCH", "Null timestamp defaults to FITEPOCH"],
 )
 def test_convert_datetime(given_timestamp, expected_datetime):
