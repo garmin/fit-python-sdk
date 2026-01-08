@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 
 import pytest
 from garmin_fit_sdk import Decoder, Stream, CrcCalculator
-from garmin_fit_sdk.decoder import DecodeMode  
+from garmin_fit_sdk.decoder import DecodeMode
 
 from tests.data import Data
 
@@ -123,7 +123,7 @@ class TestDataOnlyDecodeMode:
 
         assert len(errors) == 0
         assert len(messages['file_id_mesgs']) == 1
-    
+
     def test_no_header_without_data_only(self):
         '''Tests that file with no header fails when decode mode is data only'''
         stream = Stream.from_byte_array(Data.fit_file_short_data_only)
@@ -131,7 +131,7 @@ class TestDataOnlyDecodeMode:
         messages, errors = decoder.read()
 
         assert len(errors) == 1
-        
+
     def test_invalid_crc_with_data_only(self):
         '''Tests that file with invalid CRC should not fail when decode mode is data only'''
         stream = Stream.from_byte_array(Data.fit_file_short_new_invalid_crc[14:])
@@ -372,6 +372,15 @@ class TestDecoderRead():
         messages, errors = decoder.read()
 
         assert len(errors) == 0 and len(messages['activity_mesgs']) == 1
+
+    def test_read_multibyte_dev_data(self):
+        '''Tests reading developer data with a multi-byte base type.'''
+        stream = Stream.from_byte_array(Data.fit_file_short_multibyte_dev_data)
+        decoder = Decoder(stream)
+        messages, errors = decoder.read()
+
+        assert len(errors) == 0 and len(messages['session_mesgs']) == 1
+        assert messages['session_mesgs'][0]['developer_fields'][0] == 1234
 
     @pytest.mark.parametrize(
         "option_status",
@@ -657,7 +666,7 @@ class TestAccumulatedFields:
         assert messages['record_mesgs'][0]['distance'] == 2
         assert messages['record_mesgs'][1]['distance'] == 264
         assert messages['record_mesgs'][2]['distance'] == 276
-        
+
 class TestDecoderExceptions:
     '''Set of tests which verifies behavior of the decoder when various exceptions are raised'''
     @pytest.mark.parametrize(
@@ -671,11 +680,11 @@ class TestDecoderExceptions:
         '''Tests to ensure that the decoder rethrows KeyboardInterrupt and SystemExit exceptions'''
         stream = Stream.from_byte_array(Data.fit_file_short)
         decoder = Decoder(stream)
-        
+
         mocked_is_fit = mocker.patch('garmin_fit_sdk.Decoder.is_fit')
         mocked_is_fit.side_effect = exception
 
-        with pytest.raises(exception): 
+        with pytest.raises(exception):
             decoder.read()
 
     @pytest.mark.parametrize(
@@ -692,7 +701,7 @@ class TestDecoderExceptions:
         '''Tests to ensure that the decoder does not rethrow other exceptions'''
         stream = Stream.from_byte_array(Data.fit_file_short)
         decoder = Decoder(stream)
-        
+
         mocked_is_fit = mocker.patch('garmin_fit_sdk.Decoder.is_fit')
         mocked_is_fit.side_effect = exception
 

@@ -1,8 +1,37 @@
 [build-system]
-requires = [
-    "setuptools >= 48",
-    "setuptools_scm[toml] >= 4, <6",
-    "setuptools_scm_git_archive",
-    "wheel >= 0.29.0",
+requires = ["setuptools >= 64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+version = "21.188.0"
+name = "garmin-fit-sdk"
+description = "Garmin FIT Python SDK"
+authors = [{ name = "Garmin International, Inc." }]
+readme = { file = "README.md", content-type = "text/markdown" }
+license = { file = "LICENSE" }
+keywords = ["garmin", "fit sdk", "fit"]
+requires-python = ">=3.6"
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Natural Language :: English",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.6",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3 :: Only",
+    "Operating System :: OS Independent",
 ]
-build-backend = 'setuptools.build_meta'
+urls = { "Homepage" = "https://github.com/garmin/fit-python-sdk" }
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest~=7.0.1", "pytest-cov~=3.0.0", "pytest-mock~=3.6.1"]
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+exclude = [".gitignore", ".vscode*", ".pytest_cache*", ".test.py"]
