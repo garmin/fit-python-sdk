@@ -9,6 +9,7 @@ Share your knowledge, ask questions, and get the latest FIT SDK news in the [FIT
 * [Python](https:##www.python.org/downloads/) Version 3.6 or greater is required to run the FIT Python SDK
 
 ## Install
+The FIT Python SDK is published to PyPi as [garmin-fit-sdk](https://pypi.org/project/garmin-fit-sdk/) and can be installed using pip.
 ```sh
 pip install garmin-fit-sdk
 ```

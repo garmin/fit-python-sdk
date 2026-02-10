@@ -3,7 +3,7 @@ requires = ["setuptools >= 64"]
 build-backend = "setuptools.build_meta"
 
 [project]
-version = "21.188.0"
+version = "21.194.0"
 name = "garmin-fit-sdk"
 description = "Garmin FIT Python SDK"
 authors = [{ name = "Garmin International, Inc." }]
