@@ -24,7 +24,7 @@ jobs:
 
       - name: Install requirements
         run: |
-          python3 -m pip install -r requirements.txt
+          python3 -m pip install .
       - name: Run test suite
         run: |
           python3 -m pytest
