@@ -632,7 +632,8 @@ class Decoder:
         if message is None or message['developer_data_index'] is None or message['developer_data_index']['raw_field_value'] == 0xFF:
             return
 
-        if self._developer_data_defs[message['developer_data_index']['raw_field_value']] is None:
+        dev_data_index = message['developer_data_index']['raw_field_value']
+        if dev_data_index not in self._developer_data_defs or self._developer_data_defs[dev_data_index] is None:
             return
 
         if message["fit_base_type_id"] is not None:
