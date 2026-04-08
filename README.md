@@ -58,7 +58,7 @@ A file must pass all three of these tests to be considered a valid FIT file. See
 #### Read Method
 The Read method decodes all messages from the input stream and returns an object containing a list of errors encountered during the decoding and a dictionary of decoded messages grouped by message type. Any exceptions encountered during decoding will be caught by the Read method and added to the list of errors.
 
-The Read method accepts an optional options object that can be used to customize how field data is represented in the decoded messages. All options are enabled by default. Disabling options may speed up file decoding. Options may also be enabled or disable based on how the decoded data will be used.
+The Read method accepts an optional options object that can be used to customize how field data is represented in the decoded messages. All options are enabled by default. Disabling options may speed up file decoding. Options may also be enabled or disabled based on how the decoded data will be used.
 
 ```py
 messages, errors = read(
@@ -72,7 +72,7 @@ messages, errors = read(
             mesg_listener = None)
 ```
 #### mesg_listener
-Optional callback function that can be used to inspect or manipulate messages after they are fully decoded and all the options have been applied. The message is mutable and we be returned from the Read method in the messages dictionary.
+Optional callback function that can be used to inspect or manipulate messages after they are fully decoded and all the options have been applied. The message is mutable and will be returned from the Read method in the messages dictionary.
 
 Example mesg_listener callback that tracks the field names across all Record messages.
 
@@ -107,7 +107,7 @@ When true the scale and offset values as defined in the FIT Profile are applied 
 When false the raw field value is used.
 ```py
 {
-  'altitude': 10435 ## raw value store in file
+  'altitude': 10435 ## raw value stored in file
 }
 ```
 #### enable_crc_check: true | false
@@ -164,7 +164,7 @@ When true FIT Epoch values are converted to Python datetime objects.
 ```py
 { 'time_created': {Python datetime object} }
 ```
-When false the FIT Epoch value  is used.
+When false the FIT Epoch value is used.
 ```py
 { 'time_created': 995749880 }
 ```
@@ -210,8 +210,78 @@ The FIT_EPOCH_S value can be used to convert FIT Epoch values to Python datetime
 ```py
 python_date = datetime.datetime.fromtimestamp(fitDateTime + FIT_EPOCH_S, datetime.UTC)
 ```
+### BASE_TYPE_TO_FIELD_TYPE Constant
+`BASE_TYPE_TO_FIELD_TYPE` is a dictionary that maps FIT base type values to their corresponding field type name strings as defined in the FIT Profile.
+```py
+field_type_string = BASE_TYPE_TO_FIELD_TYPE[base_type_value]
+# e.g. BASE_TYPE_TO_FIELD_TYPE[BASE_TYPE['UINT32']] == 'uint32'
+```
+### FIELD_TYPE_TO_BASE_TYPE Constant
+`FIELD_TYPE_TO_BASE_TYPE` is the inverse mapping of `BASE_TYPE_TO_FIELD_TYPE`. It maps FIT field type name strings to their corresponding base type values as defined in the FIT Profile.
+```py
+base_type_value = FIELD_TYPE_TO_BASE_TYPE[field_type_string]
+# e.g. FIELD_TYPE_TO_BASE_TYPE['uint32'] == BASE_TYPE['UINT32']
+```
 ### convert_timestamp_to_datetime Method
 A convenience method for converting FIT Epoch values to Python Datetime objects.
 ```py
 python_date = convert_timestamp_to_datetime(fit_datetime)
 ```
+### convert_datetime_to_timestamp Method
+A convenience method for converting Python Datetime objects to FIT Epoch values.
+```py
+fit_datetime = convert_datetime_to_timestamp(python_date)
+```
+
+## Encoder
+### Usage
+```py
+from datetime import datetime, timezone
+
+from garmin_fit_sdk import Encoder, Profile
+
+encoder = Encoder()
+
+# Pass the MesgNum and message data as separate parameters to the onMesg() method
+encoder.on_mesg(Profile['mesg_num']['FILE_ID'], {
+    'manufacturer': 'development',
+    'product': 1,
+    'time_created': datetime.now(tz=timezone.utc),
+    'type': 'activity',
+})
+
+# The writeMesg() method expects the mesgNum to be included in the message data
+# Internally, writeMesg() calls onMesg()
+encoder.write_mesg({
+    'mesg_num': Profile['mesg_num']['FILE_ID'],
+    'manufacturer': 'development',
+    'product': 1,
+    'time_created': datetime.now(tz=timezone.utc),
+    'type': 'activity',
+})
+
+# Unknown values in the message will be ignored by the Encoder
+encoder.on_mesg(Profile['mesg_num']['FILE_ID'], {
+    'manufacturer': 'development',
+    'product': 1,
+    'time_created': datetime.now(tz=timezone.utc),
+    'type': 'activity',
+    'customField': 12345, # This value will be ignored by the Encoder
+})
+
+# Subfield values in the message will be ignored by the Encoder
+encoder.on_mesg(Profile['mesg_num']['FILE_ID'], {
+    'manufacturer': 'development',
+    'product': 4440, # This is the main product field, which is a uint16
+    'garmin_product': 'edge_1050', # This value will be ignored by the Encoder, use the main field value instead
+    'time_created': datetime.now(tz=timezone.utc),
+    'type': 'activity',
+})
+
+uint8_array = encoder.close()
+
+# Write the bytes to a file
+with open('example.fit', 'wb') as f:
+    f.write(uint8_array)
+```
+See the [Encode Activity Recipe](https://github.com/garmin/fit-python-sdk/blob/main/tests/test_encode_activity_recipe.py) for a complete example of encoding a FIT Activity file using the FIT Python SDK.

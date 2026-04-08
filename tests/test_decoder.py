@@ -373,6 +373,14 @@ class TestDecoderRead():
 
         assert len(errors) == 0 and len(messages['activity_mesgs']) == 1
 
+    def test_read_field_description_no_matching_dev_data_mesg(self):
+        '''Tests reading a field description message with no matching dev data message does not return an error.'''
+        stream = Stream.from_byte_array(Data.fit_file_field_decription_missing_dev_data_mesg)
+        decoder = Decoder(stream)
+        messages, errors = decoder.read()
+
+        assert len(errors) == 0 and len(messages['field_description_mesgs']) == 1
+
     def test_read_multibyte_dev_data(self):
         '''Tests reading developer data with a multi-byte base type.'''
         stream = Stream.from_byte_array(Data.fit_file_short_multibyte_dev_data)
