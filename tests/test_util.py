@@ -60,3 +60,31 @@ def test_convert_datetime_to_timestamp(given_datetime, expected_timestamp):
     '''Tests converting a Python datetime to a FIT timestamp'''
     result = util.convert_datetime_to_timestamp(given_datetime)
     assert result == expected_timestamp
+
+
+@pytest.mark.parametrize(
+    "given_bytes,expected",
+    [
+        (b"hello\x00", "hello"),
+        (b"hello\x00world\x00", ["hello", "world"]),
+        (b"\x00", None),
+        (b"\x00\x00\x00", None),
+        (b"hello", "hello"),
+        (b"caf\xc3\xa9\x00", "caf\u00e9"),
+        (b"one\x00two\x00three\x00", ["one", "two", "three"]),
+        (b"\xff\xfe\x00", None),
+    ],
+    ids=[
+        "Single string with null terminator",
+        "Two null-separated strings",
+        "Only null byte returns None",
+        "Multiple null bytes returns None",
+        "String without null terminator",
+        "UTF-8 multibyte character",
+        "Three null-separated strings",
+        "Invalid UTF-8 bytes ignored returns None",
+    ],
+)
+def test__convert_string(given_bytes, expected):
+    '''Tests converting a raw byte string to a Python string per the FIT protocol.'''
+    assert util._convert_string(given_bytes) == expected

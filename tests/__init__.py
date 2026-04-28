@@ -8,4 +8,4 @@
 
 # __init__.py for the fit sdk tests module
 
-__version__ = '21.201.0'
+__version__ = '21.202.0'

@@ -9,9 +9,11 @@
 
 
 from datetime import datetime, timezone
+import struct
 
 import pytest
-from garmin_fit_sdk import Decoder, Stream, CrcCalculator
+from garmin_fit_sdk import Decoder, Profile, Stream, CrcCalculator
+from garmin_fit_sdk import fit as FIT
 from garmin_fit_sdk.decoder import DecodeMode
 
 from tests.data import Data
@@ -729,3 +731,125 @@ def test_mesg_listener():
 
     assert len(errors) == 1
     assert str(errors[0]) == "The message listener was called!"
+
+
+def _build_fit(mesg_num, field_defs, records):
+    '''Build a minimal valid FIT file from a message definition and data records.
+
+    Args:
+        mesg_num: Global message number.
+        field_defs: List of (field_num, size_bytes, base_type_num) tuples.
+        records: List of bytes/bytearray, each being the concatenated raw field data.
+    '''
+    defn = bytearray([0x40, 0x00, 0x00])  # definition header, reserved, little-endian
+    defn += struct.pack('<H', mesg_num)
+    defn.append(len(field_defs))
+    for field_num, size_bytes, base_type in field_defs:
+        defn += bytes([field_num, size_bytes, base_type | FIT.BASE_TYPE_DEFINITIONS[base_type]['endian_flag']])
+
+    data = bytearray()
+    for rec in records:
+        data += b'\x00' + bytearray(rec)
+
+    data_section = defn + data
+
+    header = bytearray([0x0E, 0x20])
+    header += struct.pack('<H', 1000)
+    header += struct.pack('<I', len(data_section))
+    header += b'.FIT'
+    header += struct.pack('<H', CrcCalculator.calculate_crc(header, 0, 12))
+
+    full = header + data_section
+    full += struct.pack('<H', CrcCalculator.calculate_crc(full, 0, len(full)))
+    return full
+
+
+_RECORD = Profile['mesg_num']['RECORD']
+_MONITORING = Profile['mesg_num']['MONITORING']
+_UINT8 = FIT.BASE_TYPE['UINT8']
+_UINT16 = FIT.BASE_TYPE['UINT16']
+_UINT32 = FIT.BASE_TYPE['UINT32']
+_UINT64 = FIT.BASE_TYPE['UINT64']
+_BYTE = FIT.BASE_TYPE['BYTE']
+
+
+class TestComponentExpansionByBaseType:
+    '''Parametrized tests for component expansion across source and target base types.
+
+    Uses real FIT profile messages to verify
+    that the decoder correctly expands component fields and applies scale/offset.
+    '''
+
+    @pytest.mark.parametrize(
+        'mesg_num,field_defs,record_data,mesg_key,expected',
+        [
+            pytest.param(
+                _RECORD, [(6, 2, _UINT16)], struct.pack('<H', 1390),
+                'record_mesgs', {'speed': 1.39, 'enhanced_speed': 1.39},
+                id='UINT16 speed -> UINT32 enhanced_speed, scale only',
+            ),
+            pytest.param(
+                _RECORD, [(6, 2, _UINT16)], struct.pack('<H', 5000),
+                'record_mesgs', {'speed': 5.0, 'enhanced_speed': 5},
+                id='UINT16 speed -> UINT32 enhanced_speed, integer result',
+            ),
+            pytest.param(
+                _RECORD, [(2, 2, _UINT16)], struct.pack('<H', 3000),
+                'record_mesgs', {'altitude': 100.0, 'enhanced_altitude': 100},
+                id='UINT16 altitude -> UINT32 enhanced_altitude, positive',
+            ),
+            pytest.param(
+                _RECORD, [(2, 2, _UINT16)], struct.pack('<H', 2500),
+                'record_mesgs', {'altitude': 0.0, 'enhanced_altitude': 0},
+                id='UINT16 altitude -> UINT32 enhanced_altitude, zero',
+            ),
+            pytest.param(
+                _RECORD, [(2, 2, _UINT16)], struct.pack('<H', 2000),
+                'record_mesgs', {'altitude': -100.0, 'enhanced_altitude': -100},
+                id='UINT16 altitude -> UINT32 enhanced_altitude, negative',
+            ),
+            pytest.param(
+                _RECORD, [(18, 1, _UINT8)], bytes([100]),
+                'record_mesgs', {'cycles': 100, 'total_cycles': 100},
+                id='UINT8 cycles -> UINT32 total_cycles, accumulated',
+            ),
+            pytest.param(
+                _RECORD, [(18, 1, _UINT8)], bytes([254]),
+                'record_mesgs', {'cycles': 254, 'total_cycles': 254},
+                id='UINT8 cycles -> UINT32 total_cycles, max non-invalid',
+            ),
+            pytest.param(
+                _RECORD, [(8, 3, _BYTE)], bytes([0x8B, 0x00, 0x08]),
+                'record_mesgs', {'speed': 1.39, 'distance': 8, 'enhanced_speed': 1.39},
+                id='BYTE[3] compressed_speed_distance -> multi-component cascade',
+            ),
+            pytest.param(
+                _MONITORING,
+                [(24, 1, _BYTE), (3, 4, _UINT32)],
+                bytes([0x61]) + struct.pack('<I', 20),
+                'monitoring_mesgs',
+                {'activity_type': 'running', 'intensity': 3, 'cycles': 10.0},
+                id='BYTE -> enum activity_type + UINT8 intensity, multi-component',
+            ),
+            pytest.param(
+                _MONITORING,
+                [(24, 1, _BYTE), (3, 4, _UINT32)],
+                bytes([0x06]) + struct.pack('<I', 30),
+                'monitoring_mesgs',
+                {'activity_type': 'walking', 'intensity': 0, 'cycles': 15.0},
+                id='BYTE -> enum activity_type=walking, intensity=0',
+            ),
+        ],
+    )
+    def test_component_expansion(self, mesg_num, field_defs, record_data, mesg_key, expected):
+        data = _build_fit(mesg_num, field_defs, [record_data])
+        stream = Stream.from_byte_array(data)
+        decoder = Decoder(stream)
+        messages, errors = decoder.read(merge_heart_rates=False)
+        assert len(errors) == 0
+        msg = messages[mesg_key][0]
+        for key, val in expected.items():
+            if isinstance(val, float):
+                assert msg[key] == pytest.approx(val)
+            else:
+                assert msg[key] == val
