@@ -425,7 +425,7 @@ def _encode_then_decode(mesgs, field_descriptions=None, decoder_opts=None):
     data = _encode_mesgs(mesgs, field_descriptions)
     stream = Stream.from_byte_array(bytearray(data))
     decoder = Decoder(stream)
-    opts = {'convert_types_to_strings': False, 'convert_datetimes_to_dates': False}
+    opts = {}
     if decoder_opts:
         opts.update(decoder_opts)
     return decoder.read(**opts)
@@ -497,6 +497,55 @@ class TestEncoderUnexpectedTypes:
             _encode_mesgs([{'mesg_num': DEFAULT_CUSTOM_MESG_NUM, 'mesg': {'val': value}}])
 
 
+# MARK: Null and FIT Invalid Value Encoding
+
+_FIELD_DATA_OFFSET = 24
+
+
+@pytest.mark.parametrize('base_type', [
+    'uint8', 'sint8', 'uint16', 'sint16', 'uint32', 'sint32',
+    'float32', 'float64', 'uint8z', 'uint16z', 'uint32z',
+    'byte', 'sint64', 'uint64', 'uint64z',
+])
+class TestEncoderNullValueEncoding:
+    '''Encoding None for any base type should raise.'''
+
+    def test_encoding_none_raises(self, base_type, custom_mesg):
+        custom_mesg(DEFAULT_CUSTOM_MESG_NUM, 'null_mesg', {
+            0: {'name': 'null_field', 'type': base_type, 'base_type': base_type},
+        })
+        with pytest.raises((ValueError, Exception)):
+            _encode_mesgs([{'mesg_num': DEFAULT_CUSTOM_MESG_NUM, 'mesg': {'null_field': None}}])
+
+
+@pytest.mark.parametrize('base_type,value,invalid_bytes', [
+    ('uint8',   0xFF,               [0xFF]),
+    ('sint8',   0x7F,               [0x7F]),
+    ('uint16',  0xFFFF,             [0xFF, 0xFF]),
+    ('sint16',  0x7FFF,             [0xFF, 0x7F]),
+    ('uint32',  0xFFFFFFFF,         [0xFF, 0xFF, 0xFF, 0xFF]),
+    ('sint32',  0x7FFFFFFF,         [0xFF, 0xFF, 0xFF, 0x7F]),
+    ('uint8z',  0x00,               [0x00]),
+    ('uint16z', 0x0000,             [0x00, 0x00]),
+    ('uint32z', 0x00000000,         [0x00, 0x00, 0x00, 0x00]),
+    ('byte',    0xFF,               [0xFF]),
+    ('sint64',  0x7FFFFFFFFFFFFFFF, [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F]),
+    ('uint64',  0xFFFFFFFFFFFFFFFF, [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]),
+    ('uint64z', 0x0000000000000000, [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]),
+])
+class TestEncoderFitInvalidValueEncoding:
+    '''Encoding the FIT invalid value for a base type should write the expected bytes.'''
+
+    def test_fit_invalid_value_writes_expected_bytes(self, base_type, value, invalid_bytes, custom_mesg):
+        custom_mesg(DEFAULT_CUSTOM_MESG_NUM, 'inv_mesg', {
+            0: {'name': 'inv_field', 'type': base_type, 'base_type': base_type},
+        })
+
+        data = _encode_mesgs([{'mesg_num': DEFAULT_CUSTOM_MESG_NUM, 'mesg': {'inv_field': value}}])
+        field_bytes = list(data[_FIELD_DATA_OFFSET:_FIELD_DATA_OFFSET + len(invalid_bytes)])
+
+        assert field_bytes == invalid_bytes
+
 
 # MARK: Encoder Decoder Integration
 
@@ -512,14 +561,14 @@ class TestEncoderDecoderIntegration:
         assert 'file_id_mesgs' in messages
         assert len(messages['file_id_mesgs']) == 1
         file_id = messages['file_id_mesgs'][0]
-        assert file_id['type'] == 4
-        assert file_id['manufacturer'] == 1
+        assert file_id['type'] == "activity"
+        assert file_id['manufacturer'] == "garmin"
         assert file_id['serial_number'] == 12345
 
     def test_encode_decode_multiple_messages(self):
         '''Encode multiple messages and decode them back.'''
         messages, errors = _encode_then_decode([
-            {'mesg_num': Profile['mesg_num']['FILE_ID'],  'mesg': {'type': 4, 'manufacturer': 1}},
+            {'mesg_num': Profile['mesg_num']['FILE_ID'],  'mesg': {'type': "activity", 'manufacturer': "garmin"}},
             {'mesg_num': Profile['mesg_num']['FILE_CREATOR'], 'mesg': {'software_version': 100, 'hardware_version': 5}},
         ])
         assert len(errors) == 0
@@ -533,7 +582,7 @@ class TestEncoderDecoderIntegration:
         '''Encode a message with a string field and decode it back.'''
         messages, errors = _encode_then_decode([{
             'mesg_num': Profile['mesg_num']['FILE_ID'],
-            'mesg': {'type': 4, 'manufacturer': 1, 'product_name': 'TestDevice'},
+            'mesg': {'type': 'activity', 'manufacturer': 'garmin', 'product_name': 'TestDevice'},
         }])
         assert len(errors) == 0
         file_id = messages['file_id_mesgs'][0]
@@ -542,7 +591,7 @@ class TestEncoderDecoderIntegration:
     def test_encode_decode_with_type_strings(self):
         '''Encode using numeric values, decode with type string conversion.'''
         messages, errors = _encode_then_decode(
-            [{'mesg_num': Profile['mesg_num']['FILE_ID'], 'mesg': {'type': 4, 'manufacturer': 1}}],
+            [{'mesg_num': Profile['mesg_num']['FILE_ID'], 'mesg': {'type': "activity", 'manufacturer': "garmin"}}],
             decoder_opts={'convert_types_to_strings': True},
         )
         assert len(errors) == 0
@@ -553,13 +602,13 @@ class TestEncoderDecoderIntegration:
     def test_encode_decode_same_mesg_type_multiple_times(self):
         '''Encode the same message type multiple times (definition reuse).'''
         messages, errors = _encode_then_decode([
-            {'mesg_num': Profile['mesg_num']['FILE_ID'], 'mesg': {'type': 4, 'manufacturer': 1}},
-            {'mesg_num': Profile['mesg_num']['FILE_ID'], 'mesg': {'type': 4, 'manufacturer': 2}},
+            {'mesg_num': Profile['mesg_num']['FILE_ID'], 'mesg': {'type': "activity", 'manufacturer': 1}},
+            {'mesg_num': Profile['mesg_num']['FILE_ID'], 'mesg': {'type': "activity", 'manufacturer': 15}},
         ])
         assert len(errors) == 0
         assert len(messages['file_id_mesgs']) == 2
-        assert messages['file_id_mesgs'][0]['manufacturer'] == 1
-        assert messages['file_id_mesgs'][1]['manufacturer'] == 2
+        assert messages['file_id_mesgs'][0]['manufacturer'] == "garmin"
+        assert messages['file_id_mesgs'][1]['manufacturer'] == "dynastream"
 
     def test_encode_decode_integrity_check(self):
         '''Encoded file should pass integrity check.'''
@@ -580,8 +629,8 @@ class TestEncoderDecoderIntegration:
         }
         messages, errors = _encode_then_decode(
             [{'mesg_num': Profile['mesg_num']['HR'], 'mesg': hr_mesg}],
-            decoder_opts={'merge_heart_rates': False})
-        
+            decoder_opts={'merge_heart_rates': False, 'convert_datetimes_to_dates': False})
+
         expected_expanded_event_timestamps = [
             2.826171875,
             3.5986328125,
@@ -592,7 +641,7 @@ class TestEncoderDecoderIntegration:
             7.2392578125,
             7.9697265625,
             ]
-        
+
         assert errors == []
         assert len(messages['hr_mesgs']) == 1
         decoded = messages['hr_mesgs'][0]
@@ -660,6 +709,25 @@ class TestEncoderDecoderIntegration:
         decoded = messages['file_id_mesgs'][0]
         assert decoded['product'] == file_id_mesg['product']
         assert decoded['developer_fields'][0] == file_id_mesg['developer_fields'][0]
+
+    @pytest.mark.parametrize(
+        "mesg,field,value,expected_value",
+        [
+            ('weight_scale', 'weight', 12.34, 12.34),
+            ('device_info', 'device_index', 0, 'creator'),
+            ('session', 'message_index', 'mask', 'mask'),
+        ],
+    )
+    def test_encode_decode_non_enum_types(self, mesg, field, value, expected_value):
+        ''' Test that non-enum fields round-trip correctly through the encoder and decoder.'''
+        messages, errors = _encode_then_decode([{
+            'mesg_num': Profile['mesg_num'][mesg.upper()],
+            'mesg': {field: value, },
+        }])
+
+        assert len(errors) == 0
+
+        assert messages[f'{mesg}_mesgs'] == [{ field: expected_value, }]
 
 
 # MARK: Encoder Decoder All Types
