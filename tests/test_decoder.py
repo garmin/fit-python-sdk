@@ -17,6 +17,7 @@ from garmin_fit_sdk import fit as FIT
 from garmin_fit_sdk.decoder import DecodeMode
 
 from tests.data import Data
+from tests.test_encoder import _encode_then_decode
 
 
 class TestCheckIntegrity:
@@ -346,6 +347,24 @@ class TestDecoderRead():
         assert len(errors) == 0
         assert messages['file_id_mesgs'][0]['type'] == expected_type_value
 
+    @pytest.mark.parametrize(
+        "option_status,expected_value",
+        [
+            (True, 'right'),
+            (False, 0x80),
+            (None, 'right')
+        ], ids=["Set to True", "Set to False", "Default Should Convert"]
+    )
+    def test_convert_non_enum_types_to_strings(self, option_status, expected_value):
+        '''Tests the validity of converting device_index enum to string when decoding files.'''
+        stream = Stream.from_byte_array(Data.fit_file_short_nonenum_type)
+        decoder = Decoder(stream)
+        if option_status is not None:
+            messages, errors = decoder.read(convert_types_to_strings=option_status)
+        else:
+            messages, errors = decoder.read()
+        assert len(errors) == 0
+        assert messages['record_mesgs'][0]['left_right_balance'] == expected_value
 
     @pytest.mark.parametrize(
         "field_key,expected_value",
@@ -853,3 +872,42 @@ class TestComponentExpansionByBaseType:
                 assert msg[key] == pytest.approx(val)
             else:
                 assert msg[key] == val
+
+
+# MARK: Invalid Value Tests
+
+class TestInvalidValues:
+    '''Set of tests which verifies the decoder correctly drops invalid field values from messages.'''
+    @pytest.mark.parametrize(
+        "label, recordMesg",
+        [
+            pytest.param("Enum",   {'activity_type': FIT.BASE_TYPE_DEFINITIONS[FIT.BASE_TYPE['ENUM']]['invalid']},    id="Enum"),
+            pytest.param("SInt8",  {'left_pco': FIT.BASE_TYPE_DEFINITIONS[FIT.BASE_TYPE['SINT8']]['invalid']},        id="SInt8"),
+            pytest.param("UInt8",  {'cadence': FIT.BASE_TYPE_DEFINITIONS[FIT.BASE_TYPE['UINT8']]['invalid']},          id="UInt8"),
+            pytest.param("SInt16", {'grade': FIT.BASE_TYPE_DEFINITIONS[FIT.BASE_TYPE['SINT16']]['invalid'] / 100},     id="SInt16"),
+            pytest.param("UInt16", {'power': FIT.BASE_TYPE_DEFINITIONS[FIT.BASE_TYPE['UINT16']]['invalid']},           id="UInt16"),
+            pytest.param("SInt32", {'position_lat': FIT.BASE_TYPE_DEFINITIONS[FIT.BASE_TYPE['SINT32']]['invalid']},    id="SInt32"),
+            pytest.param("UInt32", {'timestamp': FIT.BASE_TYPE_DEFINITIONS[FIT.BASE_TYPE['UINT32']]['invalid']},       id="UInt32"),
+        ],
+    )
+    def test_fields_that_have_invalid_values_are_dropped(self, label, recordMesg):
+        messages, errors = _encode_then_decode([{
+            'mesg_num': Profile['mesg_num']['RECORD'],
+            'mesg': {**recordMesg, 'heart_rate': 60},
+        }])
+
+        assert len(errors) == 0
+
+        # The invalid fields should not be present
+        assert messages['record_mesgs'] == [{ 'heart_rate': 60}]
+
+    def test_fields_with_components_that_have_invalid_values_are_dropped(self):
+        messages, errors = _encode_then_decode([{
+            'mesg_num': Profile['mesg_num']['RECORD'],
+            'mesg': {'speed': 65.535, 'heart_rate': 60},
+        }])
+
+        assert len(errors) == 0
+
+        # The invalid speed field and its component should not be present
+        assert messages['record_mesgs'] == [{'heart_rate': 60}]
