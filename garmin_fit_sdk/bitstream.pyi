@@ -1,5 +1,3 @@
-# __init__garmin_fit_sdk.py
-
 ###########################################################################################
 # Copyright 2026 Garmin International, Inc.
 # Licensed under the Flexible and Interoperable Data Transfer (FIT) Protocol License; you
@@ -12,15 +10,12 @@
 ############################################################################################
 
 
-from garmin_fit_sdk.accumulator import Accumulator
-from garmin_fit_sdk.bitstream import BitStream
-from garmin_fit_sdk.crc_calculator import CrcCalculator
-from garmin_fit_sdk.decoder import Decoder
-from garmin_fit_sdk.encoder import Encoder
-from garmin_fit_sdk.fit import BASE_TYPE, BASE_TYPE_DEFINITIONS
-from garmin_fit_sdk.hr_mesg_utils import expand_heart_rates
-from garmin_fit_sdk.profile import Profile
-from garmin_fit_sdk.stream import Stream
-from garmin_fit_sdk.util import FIT_EPOCH_S, convert_datetime_to_timestamp, convert_timestamp_to_datetime, BASE_TYPE_TO_FIELD_TYPE, FIELD_TYPE_TO_BASE_TYPE
+from typing import Any
 
-__version__ = '21.212.0'
+class BitStream:
+    def __init__(self, data: Any, base_type: int) -> None: ...
+    def bits_available(self) -> int: ...
+    def has_bits_available(self) -> bool: ...
+    def reset(self) -> None: ...
+    def read_bit(self) -> int: ...
+    def read_bits(self, num_bits: int) -> int: ...

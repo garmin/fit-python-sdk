@@ -1,5 +1,3 @@
-# __init__garmin_fit_sdk.py
-
 ###########################################################################################
 # Copyright 2026 Garmin International, Inc.
 # Licensed under the Flexible and Interoperable Data Transfer (FIT) Protocol License; you
@@ -12,15 +10,11 @@
 ############################################################################################
 
 
-from garmin_fit_sdk.accumulator import Accumulator
-from garmin_fit_sdk.bitstream import BitStream
-from garmin_fit_sdk.crc_calculator import CrcCalculator
-from garmin_fit_sdk.decoder import Decoder
-from garmin_fit_sdk.encoder import Encoder
-from garmin_fit_sdk.fit import BASE_TYPE, BASE_TYPE_DEFINITIONS
-from garmin_fit_sdk.hr_mesg_utils import expand_heart_rates
-from garmin_fit_sdk.profile import Profile
-from garmin_fit_sdk.stream import Stream
-from garmin_fit_sdk.util import FIT_EPOCH_S, convert_datetime_to_timestamp, convert_timestamp_to_datetime, BASE_TYPE_TO_FIELD_TYPE, FIELD_TYPE_TO_BASE_TYPE
+class AccumulatedField:
+    def __init__(self, value: int = 0) -> None: ...
+    def accumulate(self, value: int, bits: int) -> int: ...
 
-__version__ = '21.212.0'
+class Accumulator:
+    def __init__(self) -> None: ...
+    def createAccumulatedField(self, mesg_num: int, field_num: int, value: int) -> AccumulatedField: ...
+    def accumulate(self, mesg_num: int, field_num: int, value: int, bits: int) -> int: ...

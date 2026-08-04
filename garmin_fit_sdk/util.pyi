@@ -1,5 +1,3 @@
-# __init__garmin_fit_sdk.py
-
 ###########################################################################################
 # Copyright 2026 Garmin International, Inc.
 # Licensed under the Flexible and Interoperable Data Transfer (FIT) Protocol License; you
@@ -12,15 +10,13 @@
 ############################################################################################
 
 
-from garmin_fit_sdk.accumulator import Accumulator
-from garmin_fit_sdk.bitstream import BitStream
-from garmin_fit_sdk.crc_calculator import CrcCalculator
-from garmin_fit_sdk.decoder import Decoder
-from garmin_fit_sdk.encoder import Encoder
-from garmin_fit_sdk.fit import BASE_TYPE, BASE_TYPE_DEFINITIONS
-from garmin_fit_sdk.hr_mesg_utils import expand_heart_rates
-from garmin_fit_sdk.profile import Profile
-from garmin_fit_sdk.stream import Stream
-from garmin_fit_sdk.util import FIT_EPOCH_S, convert_datetime_to_timestamp, convert_timestamp_to_datetime, BASE_TYPE_TO_FIELD_TYPE, FIELD_TYPE_TO_BASE_TYPE
+from datetime import datetime
+from typing import Any, Dict, Optional
 
-__version__ = '21.212.0'
+FIT_EPOCH_S: int
+
+BASE_TYPE_TO_FIELD_TYPE: Dict[int, str]
+FIELD_TYPE_TO_BASE_TYPE: Dict[str, int]
+
+def convert_timestamp_to_datetime(timestamp: Optional[int]) -> datetime: ...
+def convert_datetime_to_timestamp(value: datetime) -> int: ...
