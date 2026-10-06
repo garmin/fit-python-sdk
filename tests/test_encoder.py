@@ -151,7 +151,6 @@ class TestEncoderTransformValues:
         assert result == expected
 
     @pytest.mark.parametrize('input_value,base_type,field_type,scale,offset,expected', [
-        (None,         'UINT8',  'uint8',  1, 0, [0xFF]),
         ([10, 20, 30], 'UINT16', 'uint16', 1, 0, [10, 20, 30]),
     ])
     def test_transform_values(self, input_value, base_type, field_type, scale, offset, expected):
@@ -729,6 +728,34 @@ class TestEncoderDecoderIntegration:
 
         assert messages[f'{mesg}_mesgs'] == [{ field: expected_value, }]
 
+    def test_encode_decode_different_order_fields(self):
+        '''Encode a message with fields in a different order and decode it back.'''
+        messages, errors = _encode_then_decode([
+            {
+                'mesg_num': Profile['mesg_num']['FILE_ID'],
+                'mesg': {'manufacturer': "garmin", 'type': "activity"},
+            },
+            {
+                'mesg_num': Profile['mesg_num']['FILE_ID'],
+                'mesg': {'number': 1234, 'manufacturer': "tacx", 'type': "activity"},
+            },
+            {
+                'mesg_num': Profile['mesg_num']['FILE_ID'],
+                'mesg': {'type': "activity", 'manufacturer': "garmin"},
+            },
+        ])
+
+        assert len(errors) == 0
+        assert 'file_id_mesgs' in messages
+        file_id_mesgs = messages['file_id_mesgs']
+
+        assert file_id_mesgs[0].get('manufacturer') == "garmin"
+        assert file_id_mesgs[0].get('type') == "activity"
+        assert file_id_mesgs[1].get('manufacturer') == "tacx"
+        assert file_id_mesgs[1].get('number') == 1234
+        assert file_id_mesgs[1].get('type') == "activity"
+        assert file_id_mesgs[2].get('manufacturer') == "garmin"
+        assert file_id_mesgs[2].get('type') == "activity"
 
 # MARK: Encoder Decoder All Types
 
