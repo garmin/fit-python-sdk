@@ -3,12 +3,13 @@ requires = ["setuptools >= 64"]
 build-backend = "setuptools.build_meta"
 
 [project]
-version = "21.217.0"
+version = "21.218.0"
 name = "garmin-fit-sdk"
 description = "Garmin FIT Python SDK"
 authors = [{ name = "Garmin International, Inc." }]
 readme = { file = "README.md", content-type = "text/markdown" }
-license = { file = "LICENSE" }
+license = "LicenseRef-FIT-Protocol-License-Agreement"
+license-files = ["LICENSE.txt"]
 keywords = ["garmin", "fit sdk", "fit"]
 requires-python = ">=3.6"
 classifiers = [
@@ -25,10 +26,15 @@ classifiers = [
     "Operating System :: OS Independent",
     "Typing :: Typed",
 ]
-urls = { "Homepage" = "https://github.com/garmin/fit-python-sdk" }
 dependencies = [
     "typing_extensions>=3.7.4; python_version < '3.8'",
 ]
+
+[project.urls]
+Homepage = "https://github.com/garmin/fit-python-sdk"
+Documentation = "https://developer.garmin.com/fit/overview/"
+Repository = "https://github.com/garmin/fit-python-sdk"
+Issues = "https://forums.garmin.com/developer/fit-sdk/f/discussion"
 
 [project.optional-dependencies]
 dev = ["pytest~=7.0.1", "pytest-cov~=3.0.0", "pytest-mock~=3.6.1"]

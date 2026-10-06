@@ -39,21 +39,72 @@ class TestMesgDefinition:
         with pytest.raises(ValueError, match="No valid fields"):
             _MesgDefinition(0, {'nonexistent_field': 123})
 
-    def test_equals_same_definition(self):
-        mesg = {'type': 4, 'manufacturer': 1}
-        def1 = _MesgDefinition(0, mesg)
-        def2 = _MesgDefinition(0, mesg)
-        assert def1.equals(def2)
+    _developer_data_id_mesg = {'developer_data_index': 0}
+    _developer_field_descriptions = {
+        'alpha': {
+            'developer_data_id_mesg': _developer_data_id_mesg,
+            'field_description_mesg': {
+                'developer_data_index': 0,
+                'field_definition_number': 0,
+                'fit_base_type_id': FIT.BASE_TYPE['UINT8'],
+            },
+        },
+        'beta': {
+            'developer_data_id_mesg': _developer_data_id_mesg,
+            'field_description_mesg': {
+                'developer_data_index': 0,
+                'field_definition_number': 1,
+                'fit_base_type_id': FIT.BASE_TYPE['UINT8'],
+            },
+        },
+    }
 
-    def test_not_equals_different_fields(self):
-        def1 = _MesgDefinition(0, {'type': 4, 'manufacturer': 1})
-        def2 = _MesgDefinition(0, {'type': 4})
-        assert not def1.equals(def2)
+    @pytest.mark.parametrize(
+        'first,second,expected',
+        [
+            pytest.param(
+                (0, {'type': 4, 'manufacturer': 1}),
+                (0, {'type': 4, 'manufacturer': 1}),
+                True,
+                id='same-definition returns true',
+            ),
+            pytest.param(
+                (0, {'manufacturer': 1, 'type': 4}),
+                (0, {'type': 1, 'manufacturer': 4}),
+                True,
+                id='standard-fields-different-order returns true',
+            ),
+            pytest.param(
+                (0, {'type': 4, 'manufacturer': 1}),
+                (0, {'type': 4}),
+                False,
+                id='different-fields returns false',
+            ),
+            pytest.param(
+                (0, {'type': 4}),
+                (49, {'software_version': 100}),
+                False,
+                id='different-message-types returns false',
+            ),
+            pytest.param(
+                (0, {'type': 4, 'developer_fields': {'alpha': 1, 'beta': 2}}, _developer_field_descriptions),
+                (0, {'type': 4, 'developer_fields': {'alpha': 3, 'beta': 4}}, _developer_field_descriptions),
+                True,
+                id='developer-fields-same-order returns true',
+            ),
+            pytest.param(
+                (0, {'type': 4, 'developer_fields': {'alpha': 1, 'beta': 2}}, _developer_field_descriptions),
+                (0, {'type': 4, 'developer_fields': {'beta': 4, 'alpha': 3}}, _developer_field_descriptions),
+                True,
+                id='developer-fields-different-order returns true',
+            ),
+        ],
+    )
+    def test_equals(self, first, second, expected):
+        first_definition = _MesgDefinition(*first)
+        second_definition = _MesgDefinition(*second)
 
-    def test_not_equals_different_mesg(self):
-        def1 = _MesgDefinition(0, {'type': 4})
-        def2 = _MesgDefinition(49, {'software_version': 100})
-        assert not def1.equals(def2)
+        assert first_definition.equals(second_definition) is expected
 
     def test_skips_none_values(self):
         mesg = {'type': 4, 'manufacturer': None}
