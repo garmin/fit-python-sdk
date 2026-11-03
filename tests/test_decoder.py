@@ -17,7 +17,7 @@ from garmin_fit_sdk import fit as FIT
 from garmin_fit_sdk.decoder import DecodeMode
 
 from tests.data import Data
-from tests.test_encoder import _encode_then_decode
+from tests.test_encoder import _encode_then_decode, DEFAULT_CUSTOM_MESG_NUM, _add_custom_mesg_to_profile
 
 
 class TestCheckIntegrity:
@@ -911,3 +911,56 @@ class TestInvalidValues:
 
         # The invalid speed field and its component should not be present
         assert messages['record_mesgs'] == [{'heart_rate': 60}]
+
+class TestInvalidFloatValues:
+    '''Tests that float32/float64 invalid byte patterns (NaN when unpacked) are treated as absent fields.'''
+
+    def _decode_float_field(self, base_type_key, field_bytes):
+        mesg_num = DEFAULT_CUSTOM_MESG_NUM
+        _add_custom_mesg_to_profile(mesg_num, 'float_mesg', {
+            0: {'name': 'float_field', 'type': base_type_key, 'base_type': base_type_key},
+        })
+        try:
+            data = _build_fit(mesg_num, [(0, len(field_bytes), FIT.BASE_TYPE[base_type_key.upper()])], [field_bytes])
+            stream = Stream.from_byte_array(data)
+            decoder = Decoder(stream)
+            messages, errors = decoder.read(convert_types_to_strings=False, convert_datetimes_to_dates=False)
+            return messages, errors
+        finally:
+            Profile['messages'].pop(mesg_num, None)
+
+    @pytest.mark.parametrize('base_type,field_bytes', [
+        pytest.param('float32', b'\xff\xff\xff\xff',       id='Float32 single NaN'),
+        pytest.param('float64', b'\xff' * 8,               id='Float64 single NaN'),
+        pytest.param('float32', b'\xff\xff\xff\xff' * 2,   id='Float32 array all NaN'),
+        pytest.param('float64', b'\xff' * 16,              id='Float64 array all NaN'),
+        pytest.param('float32', struct.pack('<f', float('nan')), id='Float32 quiet NaN'),
+        pytest.param('float64', struct.pack('<d', float('nan')), id='Float64 quiet NaN'),
+    ])
+    def test_nan_bytes_dropped(self, base_type, field_bytes):
+        '''NaN byte patterns should result in the field being absent from the decoded message.'''
+        messages, errors = self._decode_float_field(base_type, field_bytes)
+        assert errors == []
+        assert 'float_field' not in messages['float_mesg_mesgs'][0]
+
+    @pytest.mark.parametrize('base_type,field_bytes,expected', [
+        pytest.param('float32', struct.pack('<f', 1.5), 1.5, id='Float32 valid'),
+        pytest.param('float64', struct.pack('<d', 1.5), 1.5, id='Float64 valid'),
+        pytest.param('float32', struct.pack('<f', float('inf')), float('inf'), id='Float32 infinity'),
+        pytest.param('float64', struct.pack('<d', float('-inf')), float('-inf'), id='Float64 negative infinity'),
+    ])
+    def test_valid_float_field_is_present(self, base_type, field_bytes, expected):
+        '''A valid float value should decode successfully and be present in the message.'''
+        messages, errors = self._decode_float_field(base_type, field_bytes)
+        assert errors == []
+        assert messages['float_mesg_mesgs'][0].get('float_field') == pytest.approx(expected)
+
+    @pytest.mark.parametrize('base_type,type_code,size', [
+        pytest.param('float32', 'f', 4, id='Float32 mixed array'),
+        pytest.param('float64', 'd', 8, id='Float64 mixed array'),
+    ])
+    def test_mixed_float_array_preserves_invalid_positions(self, base_type, type_code, size):
+        field_bytes = b'\xff' * size + struct.pack('<' + type_code, 1.5) + b'\xff' * size
+        messages, errors = self._decode_float_field(base_type, field_bytes)
+        assert errors == []
+        assert messages['float_mesg_mesgs'][0]['float_field'] == [None, 1.5, None]
