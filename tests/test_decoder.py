@@ -216,7 +216,7 @@ class TestDecoderRead():
         messages, errors = decoder.read()
 
         assert len(errors) == 1
-        assert "Compressed timestamp messages are not currently supported" in str(errors[0])
+        assert "Unexpected compressed timestamp header found" in str(errors[0])
 
     def test_read_incorrect_field_def_size(self):
         '''Tests that the decoder doesn't break when reading a message with an incorrect field definition size.'''
